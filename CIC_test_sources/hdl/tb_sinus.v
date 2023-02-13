@@ -50,7 +50,7 @@ module tb_sinus(
     clk = 0;
     clk_down = 0;
     $display("Clocks set up");
-    decimated_signal = $fopen("../../../../CIC_test_sources/sin_dec_out.txt", "w");
+    decimated_signal = $fopen("../../../../../CIC_test_sources/sin_dec_out.txt", "w");
     
     // Slower clock (rate R = 4, 0.25 MSps = 0.25 Mhz)
     forever begin
@@ -70,7 +70,8 @@ module tb_sinus(
     always 
         #500 clk = ~clk;
         
-    always
-        #1e8 $fclose(decimated_signal);
-    
+    always begin
+        #1e9 $fclose(decimated_signal);
+        $display("File written");
+    end
 endmodule
