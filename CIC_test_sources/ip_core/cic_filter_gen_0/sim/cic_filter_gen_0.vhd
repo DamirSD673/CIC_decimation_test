@@ -59,6 +59,9 @@ USE cic_compiler_v4_0_15.cic_compiler_v4_0_15;
 ENTITY cic_filter_gen_0 IS
   PORT (
     aclk : IN STD_LOGIC;
+    s_axis_config_tdata : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+    s_axis_config_tvalid : IN STD_LOGIC;
+    s_axis_config_tready : OUT STD_LOGIC;
     s_axis_data_tdata : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
     s_axis_data_tvalid : IN STD_LOGIC;
     s_axis_data_tready : OUT STD_LOGIC;
@@ -114,7 +117,7 @@ ARCHITECTURE cic_filter_gen_0_arch OF cic_filter_gen_0 IS
       aclk : IN STD_LOGIC;
       aclken : IN STD_LOGIC;
       aresetn : IN STD_LOGIC;
-      s_axis_config_tdata : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+      s_axis_config_tdata : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
       s_axis_config_tvalid : IN STD_LOGIC;
       s_axis_config_tready : OUT STD_LOGIC;
       s_axis_data_tdata : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
@@ -140,6 +143,10 @@ ARCHITECTURE cic_filter_gen_0_arch OF cic_filter_gen_0 IS
   ATTRIBUTE X_INTERFACE_INFO OF s_axis_data_tvalid: SIGNAL IS "xilinx.com:interface:axis:1.0 S_AXIS_DATA TVALID";
   ATTRIBUTE X_INTERFACE_PARAMETER OF s_axis_data_tdata: SIGNAL IS "XIL_INTERFACENAME S_AXIS_DATA, TDATA_NUM_BYTES 2, TDEST_WIDTH 0, TID_WIDTH 0, TUSER_WIDTH 0, HAS_TREADY 1, HAS_TSTRB 0, HAS_TKEEP 0, HAS_TLAST 0, FREQ_HZ 100000000, PHASE 0.000, LAYERED_METADATA undef, INSERT_VIP 0";
   ATTRIBUTE X_INTERFACE_INFO OF s_axis_data_tdata: SIGNAL IS "xilinx.com:interface:axis:1.0 S_AXIS_DATA TDATA";
+  ATTRIBUTE X_INTERFACE_INFO OF s_axis_config_tready: SIGNAL IS "xilinx.com:interface:axis:1.0 S_AXIS_CONFIG TREADY";
+  ATTRIBUTE X_INTERFACE_INFO OF s_axis_config_tvalid: SIGNAL IS "xilinx.com:interface:axis:1.0 S_AXIS_CONFIG TVALID";
+  ATTRIBUTE X_INTERFACE_PARAMETER OF s_axis_config_tdata: SIGNAL IS "XIL_INTERFACENAME S_AXIS_CONFIG, TDATA_NUM_BYTES 1, TDEST_WIDTH 0, TID_WIDTH 0, TUSER_WIDTH 0, HAS_TREADY 1, HAS_TSTRB 0, HAS_TKEEP 0, HAS_TLAST 0, FREQ_HZ 100000000, PHASE 0.000, LAYERED_METADATA undef, INSERT_VIP 0";
+  ATTRIBUTE X_INTERFACE_INFO OF s_axis_config_tdata: SIGNAL IS "xilinx.com:interface:axis:1.0 S_AXIS_CONFIG TDATA";
   ATTRIBUTE X_INTERFACE_PARAMETER OF aclk: SIGNAL IS "XIL_INTERFACENAME aclk_intf, ASSOCIATED_BUSIF S_AXIS_CONFIG:M_AXIS_DATA:S_AXIS_DATA, ASSOCIATED_RESET aresetn, ASSOCIATED_CLKEN aclken, FREQ_HZ 100000000, PHASE 0.000, INSERT_VIP 0";
   ATTRIBUTE X_INTERFACE_INFO OF aclk: SIGNAL IS "xilinx.com:signal:clock:1.0 aclk_intf CLK";
 BEGIN
@@ -155,9 +162,9 @@ BEGIN
       C_USE_DSP => 1,
       C_HAS_ROUNDING => 0,
       C_NUM_CHANNELS => 1,
-      C_RATE_TYPE => 0,
+      C_RATE_TYPE => 1,
       C_MIN_RATE => 4,
-      C_MAX_RATE => 4,
+      C_MAX_RATE => 128,
       C_SAMPLE_FREQ => 1,
       C_CLK_FREQ => 1,
       C_USE_STREAMING_INTERFACE => 1,
@@ -169,13 +176,13 @@ BEGIN
       C_C4 => 19,
       C_C5 => 19,
       C_C6 => 0,
-      C_I1 => 26,
-      C_I2 => 25,
-      C_I3 => 24,
-      C_I4 => 23,
-      C_I5 => 22,
+      C_I1 => 49,
+      C_I2 => 42,
+      C_I3 => 36,
+      C_I4 => 30,
+      C_I5 => 25,
       C_I6 => 0,
-      C_S_AXIS_CONFIG_TDATA_WIDTH => 1,
+      C_S_AXIS_CONFIG_TDATA_WIDTH => 8,
       C_S_AXIS_DATA_TDATA_WIDTH => 16,
       C_M_AXIS_DATA_TDATA_WIDTH => 16,
       C_M_AXIS_DATA_TUSER_WIDTH => 1,
@@ -187,8 +194,9 @@ BEGIN
       aclk => aclk,
       aclken => '1',
       aresetn => '1',
-      s_axis_config_tdata => STD_LOGIC_VECTOR(TO_UNSIGNED(0, 1)),
-      s_axis_config_tvalid => '0',
+      s_axis_config_tdata => s_axis_config_tdata,
+      s_axis_config_tvalid => s_axis_config_tvalid,
+      s_axis_config_tready => s_axis_config_tready,
       s_axis_data_tdata => s_axis_data_tdata,
       s_axis_data_tvalid => s_axis_data_tvalid,
       s_axis_data_tready => s_axis_data_tready,

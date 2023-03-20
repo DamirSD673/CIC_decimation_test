@@ -76,6 +76,7 @@
 --                               the one below it.  The same sine waves will be seen
 --                               on the output channels in a decimated or interpolated
 --                               manner.
+--   ~ Configuration Master    : Changes the rate using the Configuration Channel
 --
 ---------------------------------------------------------------------------
 -- Using this testbench
@@ -125,6 +126,14 @@ architecture tb of tb_cic_filter_gen_0 is
   --
   signal aclk                        : std_logic := '0';  -- the master clock
 
+  -- Config Channel signals
+  --
+  signal s_axis_config_tvalid_to_dut : std_logic := '0';  -- payload is valid
+  signal s_axis_config_tvalid        : std_logic := '0';  -- payload is valid
+  signal s_axis_config_tready        : std_logic := '1';  -- slave is ready
+  signal s_axis_config_tdata_to_dut  : std_logic_vector(7 downto 0) := (others => '0');  -- data payload
+  signal s_axis_config_tdata         : std_logic_vector(7 downto 0) := (others => '0');  -- data payload
+
   -- Data Input Channel signals
   --
   signal s_axis_data_tvalid_to_dut   : std_logic := '0';  -- Payload is valid
@@ -144,6 +153,10 @@ architecture tb of tb_cic_filter_gen_0 is
   -- These are a convenience for viewing data in a simulator waveform viewer.
   --
 
+  -- Alias for the Rate field in the Configuration Channel
+  --
+  signal s_axis_config_tdata_rate         : std_logic_vector(7 downto 0) := (others => '0');
+
   -- Alias for the Data field in the Data Input Channel
   --
   signal s_axis_data_tdata_data           : std_logic_vector(15 downto 0) := (others => '0');
@@ -161,7 +174,7 @@ architecture tb of tb_cic_filter_gen_0 is
   -- Function to generate the input sample data.  
 
   --
-  function calculate_next_input_sample(sample_number : in integer) return std_logic_vector is
+  function calculate_next_input_sample(sample_number : in integer; rate : in integer) return std_logic_vector is
     variable A      : real  := 1.0;   -- Amplitude for wave
     variable F      : real  := 1.0;   -- Frequency for wave
     variable P      : real  := 0.0;   -- Phase for wave
@@ -173,7 +186,7 @@ architecture tb of tb_cic_filter_gen_0 is
     variable result : std_logic_vector(IP_WIDTH-1 downto 0);
 
 
-    variable number_of_samples : real := 100.0 * real(4);
+    variable number_of_samples : real := 100.0 * real(rate);
 
   begin
     theta  := (2.0 * MATH_PI * F * real(sample_number mod integer(number_of_samples))) / number_of_samples;
@@ -196,10 +209,13 @@ architecture tb of tb_cic_filter_gen_0 is
   type   test_phase_t is (PHASE_START_OF_TEST,
                           NO_USDM_WAITSTATES,   -- Upstream Data Master asserts TVALID at core rate
                           USDM_WAITSTATES,      -- Upstream Data Master asserts TVALID with waitstates
+                          CHANGE_RATE,          -- Rate is reprogrammed
                           PHASE_END_OF_TEST);
 
   signal g_current_test_phase      : test_phase_t := PHASE_START_OF_TEST;  -- For debug.  Add this to your waveform to see what the test is doing
   signal g_usdm_waitstates_allowed : boolean      := false;  -- Set to true if the Upstream Data Master is allowed to insert waitstates
+  signal g_cfgm_change_rate        : boolean      := false;  -- Set to true if the Configuration Master is to change the rate
+  signal g_cfgm_new_rate           : integer      := 0;
 
   -- This function returns the number of output samples required by a test phase
   --
@@ -265,6 +281,9 @@ begin
 
   dut : entity work.cic_filter_gen_0
     port map (
+      s_axis_config_tvalid   => s_axis_config_tvalid_to_dut,
+      s_axis_config_tready   => s_axis_config_tready,
+      s_axis_config_tdata    => s_axis_config_tdata_to_dut,
       s_axis_data_tvalid     => s_axis_data_tvalid_to_dut,
       s_axis_data_tready     => s_axis_data_tready,
       s_axis_data_tdata      => s_axis_data_tdata_to_dut,
@@ -278,6 +297,8 @@ begin
   -- ----------------------------------------------------------------------------
   -- Delay all signals so that they arrive after the clock edge.
 
+  s_axis_config_tdata_to_dut  <= s_axis_config_tdata  after T_HOLD;
+  s_axis_config_tvalid_to_dut <= s_axis_config_tvalid after T_HOLD;
   s_axis_data_tdata_to_dut    <= s_axis_data_tdata    after T_HOLD;
   s_axis_data_tvalid_to_dut   <= s_axis_data_tvalid   after T_HOLD;
 
@@ -326,6 +347,17 @@ begin
 
     dout_channel_wait_for_samples (aclk, m_axis_data_tvalid, v_samples_in_phase);
 
+    -- Phase: Change the rate to the minimum of (C_RATE * 2, C_MAX_RATE)
+    -- -----------------------------------------------------------------
+    --
+    g_current_test_phase      <= CHANGE_RATE;
+    g_usdm_waitstates_allowed <= false;
+    g_cfgm_change_rate        <= true;
+    g_cfgm_new_rate           <= 8;
+    v_samples_in_phase         := get_number_of_samples_in_test_phase(RATE => g_cfgm_new_rate, NUM_CHANNELS => 1);
+
+    dout_channel_wait_for_samples (aclk, m_axis_data_tvalid, v_samples_in_phase);
+
     -- End the test
     ------------------------------------------------
     --
@@ -357,7 +389,7 @@ begin
 
       -- Calculate sample value
       --
-      v_tdata(15 downto 0) := calculate_next_input_sample(sample_number);
+      v_tdata(15 downto 0) := calculate_next_input_sample(sample_number, g_current_rate);
 
       axi_master_send (tdata_value => v_tdata,
                        aclk        => aclk,
@@ -391,7 +423,7 @@ begin
 
       -- Calculate sample value
       --
-      v_tdata(15 downto 0) := calculate_next_input_sample(sample_number);
+      v_tdata(15 downto 0) := calculate_next_input_sample(sample_number, g_current_rate);
 
       axi_master_send (tdata_value => v_tdata,
                        aclk        => aclk,
@@ -405,9 +437,38 @@ begin
     end if;
   end process;
 
+  -- ----------------------------------------------------------------------------
+  -- Configuration Master
+  -- ----------------------------------------------------------------------------
+  --
+  proc_cfgm : process
+  begin
+
+    wait on aclk until g_cfgm_change_rate = true;
+
+    s_axis_config_tdata(7 downto 0) <= std_logic_vector(to_unsigned(g_cfgm_new_rate, 8));
+    s_axis_config_tvalid <= '1';
+
+    -- Now wait until the rising clock edge were tready is 1
+    loop
+      wait until rising_edge(aclk);
+      exit when (s_axis_config_tready = '1');
+    end loop;
+
+    g_current_rate       <= g_cfgm_new_rate;
+    s_axis_config_tvalid <= '0';
+
+    -- Don't try and change the rate again until the phase controller tells you not to.  This works on a one shot mechanism,
+    -- and the phase controller needs to explicitly tell the CFGM to start
+
+    wait on aclk until g_cfgm_change_rate = false;
+  end process;
+
   -------------------------------------------------------------------------------
   -- Assign TDATA / TUSER fields to aliases, for easy simulator waveform viewing
   -------------------------------------------------------------------------------
+  -- s_axis_config_tdata_rate       <= s_axis_config_tdata(7 downto 0);
+  s_axis_config_tdata_rate <= s_axis_config_tdata(7 downto 0) when s_axis_config_tvalid = '1' and s_axis_config_tready = '1';
 
   -- Data Input Channel alias signals
   --

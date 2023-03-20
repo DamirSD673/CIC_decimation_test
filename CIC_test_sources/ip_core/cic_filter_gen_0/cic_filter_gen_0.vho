@@ -55,6 +55,9 @@
 COMPONENT cic_filter_gen_0
   PORT (
     aclk : IN STD_LOGIC;
+    s_axis_config_tdata : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+    s_axis_config_tvalid : IN STD_LOGIC;
+    s_axis_config_tready : OUT STD_LOGIC;
     s_axis_data_tdata : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
     s_axis_data_tvalid : IN STD_LOGIC;
     s_axis_data_tready : OUT STD_LOGIC;
@@ -71,6 +74,9 @@ END COMPONENT;
 your_instance_name : cic_filter_gen_0
   PORT MAP (
     aclk => aclk,
+    s_axis_config_tdata => s_axis_config_tdata,
+    s_axis_config_tvalid => s_axis_config_tvalid,
+    s_axis_config_tready => s_axis_config_tready,
     s_axis_data_tdata => s_axis_data_tdata,
     s_axis_data_tvalid => s_axis_data_tvalid,
     s_axis_data_tready => s_axis_data_tready,
